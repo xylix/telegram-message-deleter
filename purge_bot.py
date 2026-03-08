@@ -5,19 +5,17 @@ Usage:
   2. Create a bot via @BotFather, grab the token
   3. Add the bot as an admin to your channel (needs Delete Messages permission)
      — the bot will print the chat ID to the console and reply with it
-  4. Set API_ID, API_HASH, BOT_TOKEN, and CHANNEL_ID below (or as env vars)
+  4. Set API_ID, API_HASH, and BOT_TOKEN below (or as env vars)
   5. pip install telethon
-  6. Run this script, then send /purge to the bot
+  6. Run this script, then send /purge <chat_id> to the bot
 """
 
 import os
 from telethon import TelegramClient, events
-from telethon.tl.types import ChatMemberStatusAdministrator
 
 API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))  # e.g. -1001234567890
 
 bot = TelegramClient("purge_bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
@@ -33,16 +31,26 @@ async def on_added(event):
             await event.respond(f"Chat ID: {event.chat_id}")
 
 
-@bot.on(events.NewMessage(pattern="/purge"))
+@bot.on(events.NewMessage(pattern=r"/purge\s*(.*)"))
 async def purge(event):
+    arg = event.pattern_match.group(1).strip()
+    if not arg:
+        await event.respond("Usage: /purge <channel_id>")
+        return
+    try:
+        channel_id = int(arg)
+    except ValueError:
+        await event.respond("Channel ID must be a number, e.g. -1001234567890")
+        return
+
     deleted = 0
-    async for msg in bot.iter_messages(CHANNEL_ID):
+    async for msg in bot.iter_messages(channel_id):
         await msg.delete()
         deleted += 1
         if deleted % 100 == 0:
             print(f"  deleted {deleted} messages...")
 
-    await event.respond(f"Done. Deleted {deleted} messages from the target channel.")
+    await event.respond(f"Done. Deleted {deleted} messages.")
 
 
 print("Bot running. Send /purge to trigger.")
