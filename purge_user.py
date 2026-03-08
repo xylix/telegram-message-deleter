@@ -22,6 +22,7 @@ from telethon.errors import (
     ChatAdminRequiredError,
     MessageDeleteForbiddenError,
     ChatWriteForbiddenError,
+    FloodWaitError,
 )
 from tqdm import tqdm
 
@@ -146,12 +147,31 @@ async def main():
     client = TelegramClient("user_session", API_ID, API_HASH)
     await client.start()
 
+    try:
+        entity = await client.get_entity(chat_id)
+        chat_name = getattr(entity, "title", None) or getattr(entity, "username", None) or str(chat_id)
+    except Exception:
+        chat_name = str(chat_id)
+
+    skipped_note = f" (skipping first {start} already-deleted)" if start else ""
+    print(
+        f"\nAbout to delete {len(remaining)} messages{skipped_note}\n"
+        f"  Chat : {chat_name}\n"
+        f"  ID   : {chat_id}\n"
+        f"  File : {filename}\n"
+    )
+    try:
+        input("Press Enter to confirm, or Ctrl+C to abort: ")
+    except KeyboardInterrupt:
+        print("\nAborted.")
+        await client.disconnect()
+        return
+
     deleted = 0
     failed = 0
     batches = [remaining[i:i + BATCH] for i in range(0, len(remaining), BATCH)]
-    skipped_note = f" (skipping first {start} already-deleted)" if start else ""
 
-    print(f"Deleting {len(remaining)} messages{skipped_note}...")
+    print(f"Deleting...")
 
     with tqdm(total=len(remaining), unit="msg", desc="Deleting") as bar:
         for batch in batches:
@@ -165,15 +185,24 @@ async def main():
                 )
                 await client.disconnect()
                 return
+            except FloodWaitError as e:
+                tqdm.write(f"Rate limited by Telegram — waiting {e.seconds}s...")
+                await asyncio.sleep(e.seconds)
+                # Retry the same batch after the wait
+                try:
+                    await client.delete_messages(chat_id, batch)
+                    deleted += len(batch)
+                except Exception as e2:
+                    failed += len(batch)
+                    tqdm.write(f"Retry failed for batch at id {batch[0]}: {e2}")
             except MessageDeleteForbiddenError as e:
                 failed += len(batch)
-                print(f"\nCannot delete batch at id {batch[0]}: {e}")
+                tqdm.write(f"Cannot delete batch at id {batch[0]}: {e}")
             except Exception as e:
                 failed += len(batch)
-                print(f"\nUnexpected error on batch at id {batch[0]}: {e}")
+                tqdm.write(f"Unexpected error on batch at id {batch[0]}: {e}")
             bar.update(len(batch))
             save_progress(filename, start + deleted + failed)
-            await asyncio.sleep(1)
 
     clear_progress(filename)
     summary = f"Done. Deleted {deleted}, failed {failed}."
