@@ -2,6 +2,9 @@
 
 Bulk-delete all messages from a Telegram group or channel — without deleting and re-creating the chat. Useful when you want to clear history but keep the group, its members, links, and settings intact.
 
+**Why use telegram-bulk-deleter instead of something else?**
+The repo and code is intentionally minimal so it is simple to review what it does and be able to trust it. 
+
 **Why two scripts?** The Telegram Bot API has no method for listing message history. Brute-forcing sequential IDs sometimes works, but not consistently. So we have to use a user account session. We run it in two stages to have more steps of confirmation: dump the history message ids first, then delete everything from the resulting list.
 
 **Why is there no hosted version?** This tool touches your personal Telegram account and accesses your group history. You should run it yourself so your data stays with you and doesn't pass through anyone else's server.
