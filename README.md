@@ -12,8 +12,9 @@ Bulk-delete all messages from a Telegram group or channel — without deleting a
 
 - only read/delete from the `chat_id` in the JSON file and nowhere else
 - do not exfiltrate message content, contact lists, or session credentials anywhere
+- your own list of things that intuitively make sense to check
 
-The code is short. It is worth the five minutes.
+The code is short, please spend the time.
 
 ## Setup
 
