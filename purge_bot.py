@@ -1,78 +1,49 @@
 """Telegram bot that purges all messages from a channel via /purge command.
 
 Usage:
-  1. Create a bot via @BotFather, grab the token
-  2. Set BOT_TOKEN below (or as env var)
-  3. pip install python-telegram-bot
-  4. Run this script
-  5. Add the bot as admin to a channel (needs Delete Messages permission)
-     — the bot will print the channel ID to the console
-  6. Send /purge <channel_id> to the bot
+  1. Get api_id and api_hash from https://my.telegram.org
+  2. Create a bot via @BotFather, grab the token
+  3. Add the bot as an admin to your channel (needs Delete Messages permission)
+     — the bot will print the chat ID to the console and reply with it
+  4. Set API_ID, API_HASH, BOT_TOKEN, and CHANNEL_ID below (or as env vars)
+  5. pip install telethon
+  6. Run this script, then send /purge to the bot
 """
 
 import os
-import asyncio
-from telegram import Update
-from telegram.ext import Application, ChatMemberHandler, CommandHandler, ContextTypes
+from telethon import TelegramClient, events
+from telethon.tl.types import ChatMemberStatusAdministrator
 
+API_ID = int(os.getenv("API_ID", "0"))
+API_HASH = os.getenv("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID", "0"))  # e.g. -1001234567890
+
+bot = TelegramClient("purge_bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 
-async def track_added(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    result = update.my_chat_member
-    new = result.new_chat_member
-    if new.user.id == ctx.bot.id and new.status in ("administrator", "member"):
-        chat = result.chat
-        print(f"Bot added to: {chat.title!r}  ID: {chat.id}")
+@bot.on(events.ChatAction)
+async def on_added(event):
+    if event.user_added or event.user_joined:
+        me = await bot.get_me()
+        if event.user_id == me.id:
+            chat = await event.get_chat()
+            title = getattr(chat, "title", "DM")
+            print(f"Added to: {title} | Chat ID: {event.chat_id}")
+            await event.respond(f"Chat ID: {event.chat_id}")
 
 
-async def on_added(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    msg = update.message
-    if msg and msg.new_chat_members:
-        for member in msg.new_chat_members:
-            if member.id == ctx.bot.id:
-                print(f"Added to: {msg.chat.title} | Chat ID: {msg.chat.id}")
-                await msg.reply_text(f"Chat ID: {msg.chat.id}")
-                return
-
-
-async def purge(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if not ctx.args:
-        await update.message.reply_text("Usage: /purge <channel_id>")
-        return
-    try:
-        channel_id = int(ctx.args[0])
-    except ValueError:
-        await update.message.reply_text("Channel ID must be a number, e.g. -1001234567890")
-        return
-
-    bot = ctx.bot
-    msg = await bot.send_message(channel_id, "Purging...")
-    top = msg.message_id
-    await msg.delete()
-
+@bot.on(events.NewMessage(pattern="/purge"))
+async def purge(event):
     deleted = 0
-    misses = 0
-    for mid in range(top - 1, 0, -1):
-        try:
-            await bot.delete_message(channel_id, mid)
-            deleted += 1
-            misses = 0
-        except Exception:
-            misses += 1
-            if misses > 100:
-                break
-        if deleted % 30 == 0:
-            await asyncio.sleep(1)  # respect rate limits
+    async for msg in bot.iter_messages(CHANNEL_ID):
+        await msg.delete()
+        deleted += 1
+        if deleted % 100 == 0:
+            print(f"  deleted {deleted} messages...")
 
-    await update.message.reply_text(f"Done. Deleted {deleted} messages from the target channel.")
+    await event.respond(f"Done. Deleted {deleted} messages from the target channel.")
 
 
-if __name__ == "__main__":
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(ChatMemberHandler(track_added, ChatMemberHandler.MY_CHAT_MEMBER))
-    from telegram.ext import MessageHandler, filters
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_added))
-    app.add_handler(CommandHandler("purge", purge))
-    print("Bot running. Send /purge to trigger.")
-    app.run_polling()
+print("Bot running. Send /purge to trigger.")
+bot.run_until_disconnected()
