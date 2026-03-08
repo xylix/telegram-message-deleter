@@ -32,7 +32,7 @@ async def main():
 
     outfile = f"message_ids_{chat_id}.json"
     with open(outfile, "w") as f:
-        json.dump(ids, f)
+        json.dump({"chat_id": chat_id, "message_ids": ids}, f)
 
     print(f"Dumped {len(ids)} message IDs to {outfile}")
     await client.disconnect()
