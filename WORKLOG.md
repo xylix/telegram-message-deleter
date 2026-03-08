@@ -100,3 +100,15 @@ Observations:
 - The resume/progress file feature added ~60 lines for an edge case that rarely matters in practice (runs complete in minutes; re-running on already-deleted IDs is a silent no-op).
 
 Result: `purge_bot.py` deleted, resume logic stripped from `purge_user.py`. Final scripts are `dump_ids.py` (~40 lines) and `purge_user.py` (~70 lines).
+
+---
+
+## Retrospective: could this have gone faster?
+
+The core blocker — bots can't call `GetHistoryRequest` — is documented in the Telegram API docs and something an LLM should know upfront. A better initial prompt ("what approaches are even viable for bulk-deleting from a basic group?") before writing any code would likely have skipped the two dead-end attempts and gone straight to the final design. Probably 30–45 minutes saved.
+
+The registration form pain is irreducible regardless of approach.
+
+The vibecoding angle is interesting: generating and running an attempt is so cheap that there's less incentive to read the spec first. A developer writing this by hand might have spent 10 minutes with the Bot API docs before touching code, found the limitation on paper, and avoided the dead end. With an LLM the temptation is to just generate it and see — iteration feels free so you skip the upfront research. Whether that's a net loss depends on how often the "just try it" path works. Here it didn't.
+
+Claude Code vs web chat: iteration speed is mostly irrelevant for this task since the bottleneck was architectural knowledge, not code-writing speed. The one real advantage would have been running failing scripts immediately and feeding errors back automatically, collapsing the write→run→paste-error→rewrite loop. Maybe 10–15 minutes, not the dominant cost.
