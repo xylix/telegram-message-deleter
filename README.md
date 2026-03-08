@@ -45,7 +45,7 @@ python dump_ids.py <chat_id>
 
 First run will prompt for your phone number and a login code. Writes `message_ids_<chat_id>.json`.
 
-To find a chat ID: temporarily add [@userinfobot](https://t.me/userinfobot) to the group — it will report the chat ID. Remove it after.
+To find a chat ID: open the group in [web.telegram.org](https://web.telegram.org) — the ID is in the URL. Alternatively, forward any message from the group to [@userinfobot](https://t.me/userinfobot) in a private chat (it never joins your group).
 
 ### Step 2 — Delete messages
 
