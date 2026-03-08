@@ -1,22 +1,31 @@
 # telegram-bulk-deleter
 
-Two-script tool for bulk-deleting Telegram messages using your user account to list them and a bot to delete them.
+Bulk-delete all messages from a Telegram group or channel — without deleting and re-creating the chat. Useful when you want to clear history but keep the group, its members, links, and settings intact.
 
-**Why two scripts?** The Telegram Bot API has no method for listing message history, and brute-forcing sequential IDs doesn't work for basic groups (IDs come from a shared global sequence). So a user account session reads the history, and a bot with admin permissions does the deleting.
+**Why two scripts?** The Telegram Bot API has no method for listing message history, and brute-forcing sequential IDs doesn't work for basic groups (IDs come from a shared global sequence). So a user account session reads the history first, then deletes from the resulting list.
+
+**Why is there no hosted version?** This tool touches your personal Telegram account and accesses your group history. You should run it yourself so your data stays with you and doesn't pass through anyone else's server.
+
+## Before you run this
+
+`dump_ids.py` and `purge_user.py` use a **user account session** — meaning they act as you on Telegram. Before running any code from a stranger on the internet that does this, you should read through those two files and satisfy yourself that they:
+
+- only read/delete from the `chat_id` in the JSON file and nowhere else
+- do not exfiltrate message content, contact lists, or session credentials anywhere
+
+The code is short. It is worth the five minutes.
 
 ## Setup
 
 1. Get `API_ID` and `API_HASH` from https://my.telegram.org
-2. Create a bot via [@BotFather](https://t.me/BotFather) and get its `BOT_TOKEN`
-3. Install dependencies:
+2. Install dependencies:
    ```
    pip install telethon tqdm
    ```
-4. Export env vars:
+3. Export env vars:
    ```
    export API_ID=...
    export API_HASH=...
-   export BOT_TOKEN=...
    ```
 
 ## Usage
@@ -29,49 +38,14 @@ python dump_ids.py <chat_id>
 
 First run will prompt for your phone number and a login code. Writes `message_ids_<chat_id>.json`.
 
-To find a chat ID: add the bot to the group — it will print and reply with the chat ID on join.
+To find a chat ID: temporarily add [@userinfobot](https://t.me/userinfobot) to the group — it will report the chat ID. Remove it after.
 
 ### Step 2 — Delete messages
-
-There are two deletion scripts. Use the one that matches your chat type:
-
-| Chat type | Script |
-|-----------|--------|
-| Supergroup or channel | `purge_bot.py` (bot with admin permissions) |
-| Basic group | `purge_user.py` (your user account, must be group creator or admin) |
-
-**Basic groups** do not support bot admin permissions at all — only the group creator can delete any message there. If you can convert the group to a supergroup (Group Settings → Advanced → Convert to Supergroup) the bot approach works and is preferred.
-
-#### purge_bot.py (supergroups / channels)
-
-Add the bot to the chat as admin with **Delete Messages** permission, then send:
-
-```
-/purge message_ids_<chat_id>.json
-```
-
-The bot replies with a live in-chat progress bar and the console shows a `tqdm` bar.
-
-#### purge_user.py (basic groups)
 
 ```
 python purge_user.py message_ids_<chat_id>.json
 ```
 
-Reuses the `user_session.session` from Step 1. No bot required.
+Shows the chat name and message count, asks for confirmation, then deletes in batches with a progress bar. Your account must be an admin with Delete Messages permission in the chat.
 
-#### Resuming an interrupted run
-
-Both scripts save a `.progress` sidecar file (e.g. `message_ids_<chat_id>.json.progress`) after each batch. If interrupted, re-run the same command — it will detect the saved state and prompt you:
-
-```
-# bot:
-/purge message_ids_<chat_id>.json --resume   # continue from checkpoint
-/purge message_ids_<chat_id>.json --fresh    # start over
-
-# user script:
-python purge_user.py message_ids_<chat_id>.json --resume
-python purge_user.py message_ids_<chat_id>.json --fresh
-```
-
-If there is no `.progress` file but the first batch is already gone (deleted externally), both scripts detect this and suggest `--resume`, which scans forward to find the first surviving message.
+If interrupted, just re-run — deleting already-deleted messages is a no-op.

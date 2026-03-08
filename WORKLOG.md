@@ -1,5 +1,15 @@
 # Worklog
 
+## Methods
+
+Vibecoding.
+
+**Expectation:** Can be done quick, will just work straight out. (~5–10 min + some time to review the code won't accidentally delete the wrong thing.)
+
+**Reality:** ~2 hours total. A lot of small hiccups — primarily that Telegram (reasonably) grants bots only restricted access to history, which had to be worked around with user-account automation, and the official API registration form was annoyingly buggy with bad error messages.
+
+---
+
 ## Goal
 
 Bulk-delete all messages from a Telegram basic group.
@@ -77,3 +87,16 @@ The scripts no longer use a hardcoded sleep between batches. Instead they catch 
 ### In-chat progress bar
 
 `purge_bot.py` sends an initial status message when a `/purge` command is received and edits it after each batch with a Unicode block progress bar (`[████░░░░░░░░░░░░░░░░] 20% (200/1000)`). Both scripts also display a `tqdm` progress bar on the console.
+
+---
+
+## Simplification: drop the bot entirely
+
+After getting everything working, the design was reconsidered for minimality — the primary goal being that people can quickly read and verify the code before running it with their account.
+
+Observations:
+- `dump_ids.py` always requires a user session. There is no bot-only path.
+- A user session with admin permissions can delete from supergroups and channels too, not just basic groups. The bot never added capability, only a separation of concerns.
+- The resume/progress file feature added ~60 lines for an edge case that rarely matters in practice (runs complete in minutes; re-running on already-deleted IDs is a silent no-op).
+
+Result: `purge_bot.py` deleted, resume logic stripped from `purge_user.py`. Final scripts are `dump_ids.py` (~40 lines) and `purge_user.py` (~70 lines).
