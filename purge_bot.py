@@ -17,7 +17,7 @@ API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "YOUR_API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
 
-bot = TelegramClient("purge_bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+bot = TelegramClient("purge_bot", API_ID, API_HASH)
 
 
 @bot.on(events.ChatAction)
@@ -53,5 +53,11 @@ async def purge(event):
     await event.respond(f"Done. Deleted {deleted} messages.")
 
 
-print("Bot running. Send /purge to trigger.")
-bot.run_until_disconnected()
+async def main():
+    await bot.start(bot_token=BOT_TOKEN)
+    print("Bot running. Send /purge to trigger.")
+    await bot.run_until_disconnected()
+
+
+import asyncio
+asyncio.run(main())
